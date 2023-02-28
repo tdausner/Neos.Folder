@@ -1,0 +1,84 @@
+# routes for folder services
+#
+-
+  name:  'Add a folder'
+  uriPattern: 'neos/folder/add/{parent}/{title}(/{nodeTypeName})'
+  defaults:
+    '@package':    'Neos.Folder'
+    '@controller': 'FolderService'
+    '@action':     'add'
+    parent: ''
+    title: ''
+    nodeTypeName: ''
+  httpMethods: ['GET']
+-
+  name:  'Get folder tree'
+  uriPattern: 'neos/folder/get/{token}(/{sortMode})'
+  defaults:
+    '@package':    'Neos.Folder'
+    '@controller': 'FolderService'
+    '@action':     'getTree'
+    token: ''
+    sortMode: 'SORT_NATURAL'
+  httpMethods: ['GET']
+-
+  name:  'Set title at folder'
+  uriPattern: 'neos/folder/title/{token}(/{title})'
+  defaults:
+    '@package':    'Neos.Folder'
+    '@controller': 'FolderService'
+    '@action':     'title'
+    token: ''
+    title: ''
+  httpMethods: ['GET']
+-
+  name:  'Remove a folder'
+  uriPattern: 'neos/folder/remove/{token}(/{recursive})'
+  defaults:
+    '@package':    'Neos.Folder'
+    '@controller': 'FolderService'
+    '@action':     'remove'
+    token: ''
+    recursive: false
+  httpMethods: ['GET']
+-
+  name:  'Adopt a folder'
+  uriPattern: 'neos/folder/adopt/{token}(/{recursive})'
+  defaults:
+    '@package':    'Neos.Folder'
+    '@controller': 'FolderService'
+    '@action':     'adopt'
+    token: ''
+    recursive: false
+  httpMethods: ['GET']
+-
+  name:  'Move a folder'
+  uriPattern: 'neos/folder/move/{token}/{target}'
+  defaults:
+    '@package':    'Neos.Folder'
+    '@controller': 'FolderService'
+    '@action':     'move'
+    token: ''
+    target: ''
+  httpMethods: ['GET']
+-
+  name:  'Set properties at folder'
+  uriPattern: 'neos/folder/property/{token}(/{propertyString})'
+  defaults:
+    '@package':    'Neos.Folder'
+    '@controller': 'FolderService'
+    '@action':     'property'
+    token: ''
+    propertyString: ''
+  httpMethods: ['GET']
+-
+  name:  'Associate a folder'
+  uriPattern: 'neos/folder/associate/{token}/{target}(/{remove})'
+  defaults:
+    '@package':    'Neos.Folder'
+    '@controller': 'FolderService'
+    '@action':     'associate'
+    token: ''
+    target: ''
+    remove: false
+  httpMethods: ['GET']

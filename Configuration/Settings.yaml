@@ -1,0 +1,14 @@
+Neos:
+  Flow:
+    mvc:
+      routes:
+        'Neos.Folder': true
+
+  Folder:
+    defaults:
+      nodeType: 'Neos.Folder:Folder'
+      titlePropertyKey: 'title'
+      titlePathPropertyKey: 'titlePath'
+      associationsPropertyKey: 'associations'
+      # auto adopt on get request and no folder for requested dimension
+      adoptOnEmpty: true

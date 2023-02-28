@@ -1,0 +1,19 @@
+# Policies for the Neos Folders package
+
+privilegeTargets:
+  'Neos\Flow\Security\Authorization\Privilege\Method\MethodPrivilege':
+    'Neos.Folder:Folder':
+      matcher: 'method(Neos\Folder\Controller\FolderServiceController->.*Action())'
+
+  'Neos\Neos\Security\Authorization\Privilege\NodeTreePrivilege':
+    'Acme.Tree:FolderTreePrivilege':
+      label: 'Acme Folder tree access'
+      matcher: 'isDescendantNodeOf("/acme")'
+
+
+roles:
+  'Neos.Flow:Everybody':
+    privileges:
+      -
+        privilegeTarget: 'Neos.Folder:Folder'
+        permission: GRANT

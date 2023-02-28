@@ -1,0 +1,15 @@
+'Neos.Folder:Folder':
+  label: 'Neos Folder'
+  superTypes:
+    'Neos.Neos:Node': TRUE
+  constraints:
+    nodeTypes:
+      '*': FALSE
+  properties:
+    title:
+      type: string
+    titlePath:
+      type: string
+    associations:
+      type: references
+
