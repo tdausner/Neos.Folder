@@ -95,7 +95,7 @@ class FolderCommandController extends CommandController
             1676547044 => self::ENOENT,
         ];
         $exitCode = array_keys($exitCodes, $exception->getCode());
-        $this->outputLine("\033[31m%d\033[0m %s", [$exception->getCode(), $exception->getMessage()]);
+        $this->outputLine("\033[31m%'010d\033[0m %s", [$exception->getCode(), $exception->getMessage()]);
         $this->quit(empty($exitCode) ? self::EINVAL : $exitCode[0]);
     }
 
@@ -330,7 +330,7 @@ class FolderCommandController extends CommandController
                 $this->outputLine('Folder tree \<%s> empty.', [$providedFolder->path]);
                 $this->quit(self::ENOENT);
             }
-        } catch (NodeException|InvalidArgumentException $exception) {
+        } catch (Error|NodeException|InvalidArgumentException $exception) {
             $this->_exception($exception);
         }
         return $folderTree;

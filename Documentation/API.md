@@ -27,6 +27,7 @@ package as well as some error codes and messages I've stumbled upon from package
 ```
 Error code  Error Message
 ----------  ---------------------------------------------------------------------------
+0000000000  Undefined constant...
 1676315236  Invalid dimension(s) "<dimensions>"
 1676315508  Empty dimension(s)
 1676315820  Cannot adopt.
