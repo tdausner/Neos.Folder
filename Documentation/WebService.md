@@ -7,7 +7,7 @@ Each request is responded by an HTML status code and a JSON respond.
 #### Return value(s)
 
 On request of one of the services the returned result depends on the service. The specific JSON response
-is noted below, see [Request](#Requests).
+is noted below, see [Requests](#Requests).
 
 A regular JSON response is sent with HTML status code **200**.
 
