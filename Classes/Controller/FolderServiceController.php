@@ -176,7 +176,9 @@ class FolderServiceController extends ActionController
                 }
             }
             $folderTree = $this->folderRepository->getFolderTree($providedFolder, $targetDimensions, constant($sortMode));
-            empty($folderTree) && throw new NodeException(sprintf('Folder for token "%s" has no variant for dimensions "%s")',$token, FolderContext::dimensionString($targetDimensions)),1676315838);
+            empty($folderTree) && throw new NodeException(sprintf(
+                'Folder for token "%s" has no variant for dimensions "%s")',$token,
+                FolderContext::dimensionString($targetDimensions)),1676315838);
             $this->view->assign('value', $folderTree);
         } catch (Error|InvalidArgumentException|NodeException|SessionNotStartedException $exception) {
             $this->_exception($exception);

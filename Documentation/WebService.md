@@ -49,6 +49,13 @@ Query string format is `<dimension name>=<dimension value>&<dimension name 2>=<d
 If the query string contains the word `none` a folder without variants (dimensions) can be added.
 This is useful for folders unique to all dimensions like root folders.
 
+Response:
+```json
+{
+  "ok": "folder added"
+  ]
+}
+```
 ### Get folder tree information
     
 >`uriPattern: neos/folder/get/{token}(/{sortMode})?<dimensions>`
@@ -61,6 +68,20 @@ Default sort mode `SORT_NATURAL` is defined in `Routes.yaml`.
 On request to a non-existing folder AND `Neos.Folder.defaults.adoptOnEmpty: true` the requested
 folder tree is adopted from the default dimension to the session's dimensions.
 
+Response:
+```json
+{
+  "path": "/path",
+  "identifier": "9d587f6a-ff1e-43d2-80d1-f3f524cb4841",
+  "name": "path",
+  "nodeType": "Neos.Folder:Folder",
+  "index": 200,
+  "variants": [],
+  "children": [
+      ...
+   ]
+ }
+```
 ### Set title at folder identified by token.
     
 >`uriPattern: neos/folder/get/{token}(/{title})`
@@ -70,11 +91,23 @@ folder tree is adopted from the default dimension to the session's dimensions.
 On empty title the title is set to the folder node's name. The titlePath
 for the folder node and children is adjusted recursively.
 
+Response:
+```json
+{
+  "ok": "folder title set to \"new title\""
+}
+```
 ### Remove folder identified by token.
     
 >`uriPattern: neos/folder/remove/{token}`
 >- `token` folder path or identifier
 
+Response:
+```json
+{
+  "ok": "folder(s) removed"
+}
+```
 ### Adopt folder(s) identified by token.
 
 - source dimensions are default dimensions (`language=en_US` on a standard Neos installation)
@@ -84,6 +117,12 @@ for the folder node and children is adjusted recursively.
 >- `token` folder path or identifier
 >- `recursive` is optional to evoke adopt of a folder tree
 
+Response:
+```json
+{
+  "ok": "folder(s) adopted"
+}
+```
 ### Move a folder
 
 Move a folder (and sub folders) identified by `<token>` to folder identified by `<target>`.
@@ -94,6 +133,12 @@ with same title exists at `<target>`. The folder Node's path name may change.
 >- `token`: folder path or identifier
 >- `target`: folder path or identifier of target = new parent folder
 
+Response:
+```json
+{
+  "ok": "<new folder node path>"
+}
+```
 ### Set properties of a folder
 
 Set properties at a folder. Standard folder properties (title, titlePath, associations) are
@@ -103,6 +148,12 @@ excluded. Clears properties on option `<--reset>` included and `<properties>` em
 >- `token`: folder path or identifier
 >- `propertyString`: json encoded property string
 
+Response:
+```json
+{
+  "ok": "properties set/cleared"
+}
+```
 ### Set or clear association
 
 Set or clear association to `token` folder into <target> folder. Arguments work
@@ -113,3 +164,9 @@ like setting a symbolic link: `ln -s <token> <target>` or removing it: `rm <targ
  >- `target`: folder path or identifier of target = new parent folder
  >- `remove`: on true dissociate <token> from <target>
 
+Response:
+```json
+{
+  "ok": "association set/cleared"
+}
+```
