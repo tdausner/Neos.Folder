@@ -53,7 +53,6 @@ Response:
 ```json
 {
   "ok": "folder added"
-  ]
 }
 ```
 ### Get folder tree information
