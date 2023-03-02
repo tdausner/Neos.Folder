@@ -39,7 +39,7 @@
     '@controller': 'FolderService'
     '@action':     'remove'
     token: ''
-    recursive: false
+    recursive: 'false'
   httpMethods: ['GET']
 -
   name:  'Adopt a folder'
@@ -49,7 +49,7 @@
     '@controller': 'FolderService'
     '@action':     'adopt'
     token: ''
-    recursive: false
+    recursive: 'false'
   httpMethods: ['GET']
 -
   name:  'Move a folder'
@@ -80,5 +80,5 @@
     '@action':     'associate'
     token: ''
     target: ''
-    remove: false
+    remove: 'false'
   httpMethods: ['GET']
