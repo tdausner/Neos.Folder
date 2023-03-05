@@ -1,9 +1,11 @@
 {
-    "description": "",
+    "description": "A Content Repository based folder system",
+    "name": "tdausner/neos.folder",
+    "license": "GPL-3.0-or-later",
     "type": "neos-package",
-    "name": "neos/folder",
     "require": {
-        "neos/flow": "*"
+        "php": ">=8.1",
+        "neos/flow": "^8"
     },
     "autoload": {
         "psr-4": {
