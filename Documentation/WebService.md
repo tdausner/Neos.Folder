@@ -1,8 +1,19 @@
 ## Folder Web Services API
 
-The Neos.Folder Web Services API is JSON based. Each request of a service is defined by a request uri pattern. 
-
+The Neos.Folder Web Services API is JSON based. To enable the Neos.Folder Web Services the file `Settings.yaml`
+contains:
+```yaml
+Neos:
+  Flow:
+    mvc:
+      routes:
+        'Neos.Folder': true
+```
+Each request of a service is defined by a request uri pattern. 
 Each request is responded by an HTML status code and a JSON respond.
+
+To utilize the Neos.Folder Web Services API a valid Neos session must be established in advance
+(cookie `Neos_Session` must be set and valid).
 
 #### Return value(s)
 
@@ -32,9 +43,66 @@ For a list of error codes see [API.md section Error codes and messages](API.md#E
 
 Dimensions are taken 
 - from `$_SERVER['QUERY_STRING']` or
-- from the session if `$_SERVER['QUERY_STRING']`
+- from the session if `$_SERVER['QUERY_STRING']` is empty
 
 Query string format is `<dimension name>=<dimension value>&<dimension name 2>=<dimension value 2>...`
+
+## Restricting Folder Web Services API Access
+
+To restrict access to the Folder Web Services API the Neos Flow
+[Backend Permissions](https://docs.neos.io/guide/manual/backend-permissions) are utilized. The file
+`Settings.yaml` must contain:
+```yaml
+Neos:
+ Flow:
+    security:
+      authentication:
+        providers:
+          'Neos.Neos:Backend':
+            provider: PersistedUsernamePasswordProvider
+            requestPatterns:
+              'Neos.Folder:Controllers':
+                pattern: 'ControllerObjectName'
+                patternOptions:
+                  controllerObjectNamePattern: 'Neos\Folder\Controller\.*'
+
+```
+The associated file `Policy.yaml` holds all restriction information:
+```yaml
+privilegeTargets:
+ 
+  'Neos\Flow\Security\Authorization\Privilege\Method\MethodPrivilege':
+     'Neos.Folder:AnyAction':
+      matcher: 'method(Neos\Folder\Controller\FolderServiceController->.*Action())'
+ 
+  'Neos\Neos\Security\Authorization\Privilege\NodeTreePrivilege':
+    # access to folder "/path" tree (or parts of)
+    'Neos.Folder:Path':
+      label: '/path folder access'
+      matcher: 'isDescendantNodeOf("/path")'
+    # access only to "sub-path" branch
+    'Neos.Folder:SubPath':
+      label: '/path/subpath folder access'
+      matcher: 'isDescendantNodeOf("/path/sub-path")'
+
+roles:
+ 
+  'Some.Restricted:Role':
+    privileges:
+      - privilegeTarget: 'Neos.Folder:AnyAction'
+        permission: GRANT
+      - privilegeTarget: 'Neos.Folder:Path'
+        permission: GRANT
+
+  'Another.Restricted:Role':
+   privileges:
+    - privilegeTarget: 'Neos.Folder:AnyAction'
+      permission: GRANT
+    - privilegeTarget: 'Neos.Folder:SubPath'
+      permission: GRANT
+```
+The supplied configuration file [`Policy.yaml`](../Configuration/Policy.yaml) contains more granulated
+method privileges and path examples for the supplied test file [`fruit.json`](../Tests/fruit.json).
 
 ## Requests
 
@@ -51,9 +119,7 @@ This is useful for folders unique to all dimensions like root folders.
 
 Response:
 ```json
-{
-  "ok": "folder added"
-}
+{"ok": "folder added"}
 ```
 ### Get folder tree information
     
@@ -64,6 +130,8 @@ Response:
 On sort-modes `SORT_STRING|SORT_NATURAL` the flag `SORT_FLAG_CASE` is set (case-insensitive sort).
 Default sort mode `SORT_NATURAL` is defined in `Routes.yaml`.
 
+If the query string `<dimension>` contans the string `all`, folders of all dimensions are returned. 
+
 On request to a non-existing folder AND `Neos.Folder.defaults.adoptOnEmpty: true` the requested
 folder tree is adopted from the default dimension to the session's dimensions.
 
@@ -71,19 +139,30 @@ Response:
 ```json
 {
   "path": "/path",
-  "identifier": "9d587f6a-ff1e-43d2-80d1-f3f524cb4841",
   "name": "path",
   "nodeType": "Neos.Folder:Folder",
-  "index": 200,
-  "variants": [],
+  "variants": [
+    {
+      "identifier": "identifier of /path for dimension name 1",
+      "dimensions": {
+         "dimension name 1": [
+           "dimension value 1"
+         ]
+      },
+      "properties": {
+        "title": "dimension 1 title of /path ",
+        "titlePath": "dimension 1 title path of /path",
+        "associations": []
+      }
+    }
+  ],
   "children": [
-      ...
-   ]
- }
+  ]
+}
 ```
 ### Set title at folder identified by token.
     
->`uriPattern: neos/folder/get/{token}(/{title})`
+>`uriPattern: neos/folder/title/{token}(/{title})`
 >- `token` folder path or identifier
 >- `title` new title
     
@@ -92,9 +171,7 @@ for the folder node and children is adjusted recursively.
 
 Response:
 ```json
-{
-  "ok": "folder title set to \"new title\""
-}
+{"ok": "folder title set to \"new title\""}
 ```
 ### Remove folder identified by token.
     
@@ -103,9 +180,7 @@ Response:
 
 Response:
 ```json
-{
-  "ok": "folder(s) removed"
-}
+{"ok": "folder(s) removed"}
 ```
 ### Adopt folder(s) identified by token.
 
@@ -118,9 +193,7 @@ Response:
 
 Response:
 ```json
-{
-  "ok": "folder(s) adopted"
-}
+{"ok": "folder(s) adopted"}
 ```
 ### Move a folder
 
@@ -134,9 +207,7 @@ with same title exists at `<target>`. The folder Node's path name may change.
 
 Response:
 ```json
-{
-  "ok": "<new folder node path>"
-}
+{"ok": "<new folder node path>"}
 ```
 ### Set properties of a folder
 
@@ -149,9 +220,7 @@ excluded. Clears properties on option `<--reset>` included and `<properties>` em
 
 Response:
 ```json
-{
-  "ok": "properties set/cleared"
-}
+{"ok": "properties set/cleared"}
 ```
 ### Set or clear association
 
@@ -165,7 +234,5 @@ like setting a symbolic link: `ln -s <token> <target>` or removing it: `rm <targ
 
 Response:
 ```json
-{
-  "ok": "association set/cleared"
-}
+{"ok": "association set/cleared"}
 ```

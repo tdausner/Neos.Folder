@@ -2,18 +2,59 @@
 
 privilegeTargets:
   'Neos\Flow\Security\Authorization\Privilege\Method\MethodPrivilege':
-    'Neos.Folder:Folder':
+#
+# NB: either utilize only Neos.Folder:AnyAction
+#     or utilize granular method privileges
+#
+    'Neos.Folder:AnyAction':
       matcher: 'method(Neos\Folder\Controller\FolderServiceController->.*Action())'
 
-  'Neos\Neos\Security\Authorization\Privilege\NodeTreePrivilege':
-    'Acme.Tree:FolderTreePrivilege':
-      label: 'Acme Folder tree access'
-      matcher: 'isDescendantNodeOf("/acme")'
+#    'Neos.Folder:AddAction':
+#      matcher: 'method(Neos\Folder\Controller\FolderServiceController->addAction())'
+#    'Neos.Folder:GetTreeAction':
+#      matcher: 'method(Neos\Folder\Controller\FolderServiceController->getTreeAction())'
+#    'Neos.Folder:TitleAction':
+#      matcher: 'method(Neos\Folder\Controller\FolderServiceController->titleAction())'
+#    'Neos.Folder:RemoveAction':
+#      matcher: 'method(Neos\Folder\Controller\FolderServiceController->removeAction())'
+#    'Neos.Folder:AdoptAction':
+#      matcher: 'method(Neos\Folder\Controller\FolderServiceController->adoptAction())'
+#    'Neos.Folder:MoveAction':
+#      matcher: 'method(Neos\Folder\Controller\FolderServiceController->moveAction())'
+#    'Neos.Folder:PropertyAction':
+#      matcher: 'method(Neos\Folder\Controller\FolderServiceController->propertyAction())'
+#    'Neos.Folder:AssociateAction':
+#      matcher: 'method(Neos\Folder\Controller\FolderServiceController->associateAction())'
 
+  'Neos\Neos\Security\Authorization\Privilege\NodeTreePrivilege':
+
+#   access to folder "/fruit" tree (or parts of)
+#   see folder "Tests" for fruit.json test file
+    'Neos.Folder:Fruit':
+      label: 'fruit folder access'
+      matcher: 'isDescendantNodeOf("/fruit")'
+
+#   access only to "/fruit/apple" branch
+    'Neos.Folder:Apples':
+      label: 'fruit -> apple folder access'
+      matcher: 'isDescendantNodeOf("/fruit/apple")'
 
 roles:
-  'Neos.Flow:Everybody':
+
+  'Neos.Neos:Administrator':
     privileges:
       -
-        privilegeTarget: 'Neos.Folder:Folder'
+        privilegeTarget: 'Neos.Folder:AnyAction'
+        permission: GRANT
+      -
+        privilegeTarget: 'Neos.Folder:Fruit'
+        permission: GRANT
+
+  'Some.Other:Role':
+    privileges:
+      -
+        privilegeTarget: 'Neos.Folder:AnyAction'
+        permission: GRANT
+      -
+        privilegeTarget: 'Neos.Folder:Apples'
         permission: GRANT

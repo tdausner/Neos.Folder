@@ -1,5 +1,9 @@
 ## Diacritics (umlaut)
 
+### Convert string diacritics to ascii
+
+    Diacritics::function toAscii(string $input): string
+
 ### Convert string diacritics to ascii and non "word" characters to dash but leave slashes
 
     Diacritics::function path(string $input): string

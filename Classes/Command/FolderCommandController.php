@@ -19,6 +19,8 @@ use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
 use Neos\Flow\Cli\Exception\StopCommandException;
 use Neos\Flow\Persistence\Exception as FlowException;
+use Neos\Flow\Security\Exception;
+use Neos\Flow\Security\Exception\InvalidPrivilegeException;
 use Neos\Folder\Domain\Repository\FolderRepository;
 use Neos\Folder\Domain\Service\Diacritics;
 use Neos\Folder\Domain\Service\FolderContext;
@@ -75,7 +77,7 @@ class FolderCommandController extends CommandController
         try {
             $dimensions = empty($dimension) ? [] : $this->folderContext->verifyAndConvertDimensions($dimension);
             $this->folderRepository->addFolder($path, $nodeTypeName, $dimensions, $recursive);
-        } catch (InvalidArgumentException|NodeException $exception) {
+        } catch (Exception|InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
     }
@@ -88,8 +90,9 @@ class FolderCommandController extends CommandController
      * @return void
      * @throws StopCommandException
      */
-    protected function _exception(Error|FlowException|InvalidArgumentException|NodeException|NodeNotFoundException $exception): void
-    {
+    protected function _exception(
+        Error|FlowException|InvalidArgumentException|NodeException|NodeNotFoundException $exception
+    ): void {
         $exitCodes = [
             1676547042 => self::EEXISTS,
             1676547044 => self::ENOENT,
@@ -120,7 +123,7 @@ class FolderCommandController extends CommandController
             $providedFolder = (new FolderProvider())->new($token, $dimensions);
             $this->folderRepository->setTitleAndTitlePath($providedFolder->node, $title, $dimensions);
             $this->folderRepository->persist();
-        } catch (InvalidArgumentException|NodeException $exception) {
+        } catch (Exception|InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
     }
@@ -135,7 +138,6 @@ class FolderCommandController extends CommandController
      * @param string $dimension Dimension
      * @param bool $recursive true: remove recursively
      *
-     * @throws
      * @throws StopCommandException
      */
     public function removeCommand(string $token, string $dimension, bool $recursive = false): void
@@ -143,7 +145,7 @@ class FolderCommandController extends CommandController
         try {
             $dimensions = empty($dimension) ? [] : $this->folderContext->verifyAndConvertDimensions($dimension);
             $this->folderRepository->removeFolder($token, $dimensions, $recursive);
-        } catch (InvalidArgumentException|NodeException $exception) {
+        } catch (Exception|InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
     }
@@ -163,10 +165,12 @@ class FolderCommandController extends CommandController
     public function adoptCommand(string $token, string $sourceDimension, string $targetDimension, bool $recursive = false): void
     {
         try {
-            $sourceDimensions = empty($sourceDimension) ? [] : $this->folderContext->verifyAndConvertDimensions($sourceDimension);
+            $sourceDimensions = empty($sourceDimension) ? [] : $this->folderContext->verifyAndConvertDimensions(
+                $sourceDimension
+            );
             $targetDimensions = $this->folderContext->verifyAndConvertDimensions($targetDimension);
             $this->folderContext->adoptFolder($token, $sourceDimensions, $targetDimensions, $recursive);
-        } catch (InvalidArgumentException|NodeException $exception) {
+        } catch (Exception|InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
     }
@@ -190,7 +194,7 @@ class FolderCommandController extends CommandController
             $dimensions = $this->folderContext->verifyAndConvertDimensions($dimension);
             $newPath = $this->folderRepository->moveFolder($token, $target, $dimensions);
             $this->outputLine('Folder moved to "%s"', [$newPath]);
-        } catch (InvalidArgumentException|NodeException $exception) {
+        } catch (Exception|InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
     }
@@ -213,7 +217,7 @@ class FolderCommandController extends CommandController
         try {
             $dimensions = $this->folderContext->verifyAndConvertDimensions($dimension);
             $this->folderRepository->setProperties($token, $properties, $dimensions, $reset);
-        } catch (InvalidArgumentException|NodeException $exception) {
+        } catch (Exception|InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
     }
@@ -236,7 +240,7 @@ class FolderCommandController extends CommandController
         try {
             $dimensions = $this->folderContext->verifyAndConvertDimensions($dimension);
             $this->folderRepository->associate($token, $target, $dimensions, $remove);
-        } catch (InvalidArgumentException|NodeException $exception) {
+        } catch (Exception|InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
     }
@@ -257,7 +261,10 @@ class FolderCommandController extends CommandController
         foreach ($childNodes as $childNode) {
             $folderPath = $childNode->getPath();
             if ($folderPath !== SiteService::SITES_ROOT_PATH) {
-                $folderVariants = $this->folderRepository->findByIdentifierWithoutReduce($childNode->getIdentifier(), $workspace);
+                $folderVariants = $this->folderRepository->findByIdentifierWithoutReduce(
+                    $childNode->getIdentifier(),
+                    $workspace
+                );
                 $len = max($len, strlen($folderPath));
                 foreach ($folderVariants as $folderVariant) {
                     $info[$folderPath][] = $folderVariant->getDimensionValues();
@@ -281,8 +288,8 @@ class FolderCommandController extends CommandController
      * List folders path names from folder system. On sort-modes SORT_STRING|SORT_NATURAL
      * the flag SORT_FLAG_CASE is set (case-insensitive sort).
      *
-     * @param string $token Folder path or identifier (default: all)
-     * @param string $dimension Dimensions (ampersand separated list of). On empty ('') takes default dimension(s)
+     * @param string $token Folder path or identifier
+     * @param string $dimension Dimensions (ampersand separated list of). On empty ('') takes default dimension(s). Special: "all".
      * @param string $sortMode Sort mode (SORT_REGULAR | SORT_NUMERIC | SORT_STRING | SORT_LOCALE_STRING | SORT_NATURAL => default)
      *
      * @return void
@@ -290,18 +297,27 @@ class FolderCommandController extends CommandController
      */
     public function listCommand(string $token, string $dimension, string $sortMode = 'SORT_NATURAL'): void
     {
-        $dimensionValues = empty($dimension)
-            ? [FolderContext::dimensionString($this->folderContext->getDefaultDimensions())]
-            : explode('&', $dimension);
-        while ($dimensionValue = current($dimensionValues)) {
-            $folderTree = $this->_getFolderTree($token, $dimensionValue, $sortMode, true);
+        $dimensions = [];
+        if ($dimension === 'all') {
+            $folderTree = $this->_getFolderTree($token, $dimension, $sortMode);
             if (!empty($folderTree)) {
-                $folderList = $this->_formatFoldersForList($folderTree);
-                $this->_prettyPrintFolders($folderList);
+                $folderList = $this->_restructureFoldersForList($folderTree, $dimensions);
+                $this->_formatFolderList($folderList, $dimensions);
             }
-            next($dimensionValues);
-            if (!empty(current($dimensionValues))) {
-                $this->outputLine();
+        } else {
+            $dimensionValues = empty($dimension)
+                ? [FolderContext::dimensionString($this->folderContext->getDefaultDimensions())]
+                : explode('&', $dimension);
+            while ($dimensionValue = current($dimensionValues)) {
+                $folderTree = $this->_getFolderTree($token, $dimensionValue, $sortMode);
+                if (!empty($folderTree)) {
+                    $folderList = $this->_restructureFoldersForList($folderTree);
+                    $this->_formatFolderList($folderList, []);
+                }
+                next($dimensionValues);
+                if (!empty(current($dimensionValues))) {
+                    $this->outputLine();
+                }
             }
         }
     }
@@ -309,93 +325,112 @@ class FolderCommandController extends CommandController
     /**
      * Workhorse method for list and export commands. Checks $token and $dimension.
      *
-     * @param string $token Folder path or identifier (default: all)
-     * @param string $dimension Dimension: any defined in Neos.ContentRepository.contentDimensions
+     * @param string $token Folder path or identifier
+     * @param string $dimension Dimension. Special case: "all" takes all dimensions
      * @param string $sortMode Sort mode (SORT_REGULAR | SORT_NUMERIC | SORT_STRING | SORT_LOCALE_STRING | SORT_NATURAL => default)
-     * @param bool $titlePathExtra set titlePath from properties into first level properties (path, identifier, nodeType...)
      *
      * @return array folder tree
      * @throws StopCommandException
      */
-    protected function _getFolderTree(string $token, string $dimension, string $sortMode, bool $titlePathExtra): array
+    protected function _getFolderTree(string $token, string $dimension, string $sortMode): array
     {
         $folderTree = [];
         try {
             $dimensions = [];
-            !empty($dimension) && $dimensions = $this->folderContext->verifyAndConvertDimensions($dimension);
-            empty($dimensions) && $dimensions = $this->folderContext->getDefaultDimensions();
+            if ($dimension !== 'all') {
+                empty($dimensions) && $dimensions = $this->folderContext->verifyAndConvertDimensions($dimension);
+                empty($dimensions) && $dimensions = $this->folderContext->getDefaultDimensions();
+            }
             $providedFolder = (new FolderProvider())->new($token, $dimensions);
-            $folderTree = $this->folderRepository->getFolderTree($providedFolder, $dimensions, constant($sortMode), $titlePathExtra);
+            $folderTree = $this->folderRepository->getFolderTree($providedFolder, $dimensions, constant($sortMode));
             if (empty($folderTree)) {
                 $this->outputLine('Folder tree \<%s> empty.', [$providedFolder->path]);
                 $this->quit(self::ENOENT);
             }
-        } catch (Error|NodeException|InvalidArgumentException $exception) {
+        } catch (Error|Exception|InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
         return $folderTree;
     }
 
     /**
-     * Format folder properties (path, titlePath, nodeType, identifier, index) recursively
+     * Format folder properties (path, titlePath, nodeType, identifier) recursively
      *
-     * @param array $folder
+     * @param array $folderTree
+     * @param array $dimensions
      * @param int $depth
      *
      * @return array
      */
-    protected function _formatFoldersForList(array $folder, int $depth = 0): array
+    protected function _restructureFoldersForList(array $folderTree, array &$dimensions = [], int $depth = 0): array
     {
-        $list = [];
-        $list[] = [$depth, [
-            $folder[FolderRepository::NAME_KEY], $folder[FolderRepository::TITLE_PATH_KEY],
-            $folder[FolderRepository::NODE_TYPE_KEY], $folder[FolderRepository::IDENTIFIER_KEY],
-            $folder[FolderRepository::INDEX_KEY],
-        ]];
-        if (key_exists(FolderRepository::CHILDREN_KEY, $folder)) {
-            foreach ($folder[FolderRepository::CHILDREN_KEY] as $folderChild) {
-                $childList = $this->_formatFoldersForList($folderChild, $depth + 1);
-                $list = [...$list, ...$childList];
+        $folderList = [];
+        foreach ($folderTree[FolderRepository::VARIANTS_KEY] as $index => $variant) {
+            $dimensionString = $this->folderContext->dimensionString($variant[FolderRepository::DIMENSIONS_KEY]);
+            $dimensions[$dimensionString] = $index + 1;
+            $name = $index > 0 ? '->' : $folderTree[FolderRepository::NAME_KEY];
+            $titlePath = $variant[FolderRepository::PROPERTY_KEY][FolderRepository::TITLE_PATH_KEY];
+            $nodeType = $folderTree[FolderRepository::NODE_TYPE_KEY];
+            $identifier = $variant[FolderRepository::IDENTIFIER_KEY];
+            $folderList[] = [$depth, $dimensionString, [$name, $titlePath, $identifier, $nodeType]];
+        }
+        if (key_exists(FolderRepository::CHILDREN_KEY, $folderTree)) {
+            foreach ($folderTree[FolderRepository::CHILDREN_KEY] as $folderChild) {
+                $childList = $this->_restructureFoldersForList($folderChild, $dimensions, $depth + 1);
+                $folderList = [...$folderList, ...$childList];
             }
         }
-        return $list;
+        return $folderList;
     }
 
     /**
      * Pretty print folder list
      *
      * @param array $folderList
-     *
+     * @param array $dimensions
      * @return void
      */
-    protected function _prettyPrintFolders(array $folderList): void
+    protected function _formatFolderList(array $folderList, array $dimensions): void
     {
-        $width = [0, 0, 0, 0, 0];
         $paddings = [''];
-        array_unshift($folderList, [0, ['name', 'titlePath', 'nodeType', 'identifier', 'index']]);
-        foreach ($folderList as [$padSize, $columns]) {
+        $colors = [0, 31, 36, 33];
+        $columnWidth = [0, 0, 0, 0];
+        array_unshift($folderList, [0, '', ['name', 'titlePath', 'identifier', 'nodeType']]);
+        $numDimensions = count($dimensions);
+        $offset = $numDimensions <= 9 ? 2 : 3;
+        foreach ($folderList as [$padSize, $dimensionString, $columns]) {
             foreach ($columns as $index => $column) {
                 $len = is_string($column) ? Diacritics::strlen($column) : strlen((string)$column);
                 $index < 1 && $len += $padSize;
-                $width[$index] = max($len, $width[$index]);
+                $index == 1 && !empty($dimensions) && $len += $offset;
+                $columnWidth[$index] = max($len, $columnWidth[$index]);
             }
             $paddings[] = str_pad('', $padSize);
         }
-        $dashes = [0];
-        foreach ($width as $index => $value) {
-            $dashes[1][$index] = str_pad('', $value, '-');
+        $dashes = [0, ''];
+        foreach ($columnWidth as $index => $value) {
+            $dashes[2][$index] = str_pad('', $value, '-');
         }
         array_splice($folderList, 1, 0, [$dashes]);
-        $colors = [0, 31, 33, 36, 32];
-        foreach ($folderList as $row => [$depth, $columns]) {
-            $out = '';
+        foreach ($folderList as $row => [$depth, $dimensionString, $columns]) {
+            $out = [];
             foreach ($columns as $index => $column) {
+                $width = $columnWidth[$index];
+                $dimensionNumber = '';
+                if ($row > 1 && $index == 1 && $numDimensions > 1) {
+                    $dimensionIndex = $dimensions[$dimensionString];
+                    $dimensionNumber = "\033[32m$dimensionIndex ";
+                    $width -= $offset;
+                }
                 $padding = ($index < 1) ? $paddings[$row] : '';
-                $index > 0 && $out .= ' ';
-                $out .= sprintf("\033[%dm%s\033[0m", $colors[$index],
-                    Diacritics::str_pad("$padding$column", $width[$index], $row > 1 && $index < 2 ? '.' : ' '));
+                $out[] = $dimensionNumber . sprintf("\033[%dm%s\033[0m", $colors[$index],
+                        Diacritics::str_pad("$padding$column", $width, $row > 1 && $index < 2 ? '.' : ' ')
+                    );
             }
-            $this->outputLine($out);
+            $this->outputLine(join(' ', $out));
+        }
+        foreach ($dimensions as $dimension => $index) {
+            $this->outputLine("\033[32m%d\033[0m %s", [$index, $dimension]);
         }
     }
 
@@ -405,7 +440,7 @@ class FolderCommandController extends CommandController
      * Export folders from folder system in JSON format
      *
      * @param string $token path or identifier of folder tree to export
-     * @param string $dimension Dimension
+     * @param string $dimension Dimension. Special case: "all" takes all dimensions on export
      * @param string $sortMode Sort mode (SORT_REGULAR | SORT_NUMERIC | SORT_STRING | SORT_LOCALE_STRING | SORT_NATURAL => default)
      * @param bool $pretty Pretty-print output
      *
@@ -413,9 +448,12 @@ class FolderCommandController extends CommandController
      */
     public function exportCommand(string $token, string $dimension, string $sortMode = 'SORT_NATURAL', bool $pretty = false): void
     {
-        $folderTree = $this->_getFolderTree($token, $dimension, $sortMode, false);
+        $folderTree = $this->_getFolderTree($token, $dimension, $sortMode);
         if (!empty($folderTree)) {
-            $this->outputLine('%s', [json_encode($folderTree, $pretty ? JSON_ERROR_UTF8 + JSON_PRETTY_PRINT : 0)]);
+            $this->outputLine(
+                '%s',
+                [json_encode($folderTree, $pretty ? JSON_INVALID_UTF8_IGNORE + JSON_ERROR_UTF8 + JSON_PRETTY_PRINT : 0)]
+            );
         }
     }
 
@@ -428,26 +466,31 @@ class FolderCommandController extends CommandController
      * @param bool $reset Reset: remove all folder types defined in import file (recursively)
      *
      * @throws StopCommandException
+     * @throws InvalidPrivilegeException
      */
     public function importCommand(string $file, bool $reset = false): void
     {
         try {
             $folderSource = json_decode(file_get_contents($file), JSON_OBJECT_AS_ARRAY);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new InvalidArgumentException(sprintf('Invalid JSON folder file "%s", JSON error: %s', $file, json_last_error_msg()), 1677263000);
+                throw new InvalidArgumentException(
+                    sprintf('Invalid JSON folder file "%s", JSON error: %s', $file, json_last_error_msg()), 1677263000
+                );
             }
             if ($reset) {
                 try {
                     foreach ($folderSource[FolderRepository::VARIANTS_KEY] as $variant) {
                         $this->folderRepository->removeFolder(
-                            $folderSource[FolderRepository::PATH_KEY], $variant[FolderRepository::DIMENSIONS_KEY], true);
+                            $folderSource[FolderRepository::PATH_KEY],
+                            $variant[FolderRepository::DIMENSIONS_KEY],
+                            true
+                        );
                     }
                 } catch (NodeException) {
                 } // is thrown on folder tree empty
             }
             $this->_import($folderSource);
-
-        } catch (InvalidArgumentException|NodeException $exception) {
+        } catch (InvalidArgumentException|InvalidPrivilegeException|NodeException $exception) {
             $this->_exception($exception);
         }
     }
@@ -461,28 +504,36 @@ class FolderCommandController extends CommandController
     protected function _import(array $folderSource): void
     {
         $validKeys = [
-            FolderRepository::PATH_KEY, FolderRepository::IDENTIFIER_KEY, FolderRepository::NAME_KEY,
-            FolderRepository::NODE_TYPE_KEY, FolderRepository::INDEX_KEY, FolderRepository::VARIANTS_KEY,
+            FolderRepository::PATH_KEY,
+            FolderRepository::NAME_KEY,
+            FolderRepository::NODE_TYPE_KEY,
+            FolderRepository::VARIANTS_KEY,
             FolderRepository::CHILDREN_KEY,
         ];
         if (count($delta = array_diff($validKeys, array_keys($folderSource))) > 0) {
-            throw new InvalidArgumentException('Invalid file properties: ' . \Neos\Flow\var_dump($delta, '', true), 1677264338);
+            throw new InvalidArgumentException(
+                'Invalid file properties: ' . \Neos\Flow\var_dump($delta, '', true),
+                1677264338
+            );
         }
         foreach ($folderSource[FolderRepository::VARIANTS_KEY] as $variant) {
-
             $dimensions = $variant[FolderRepository::DIMENSIONS_KEY];
             $properties = $variant[FolderRepository::PROPERTY_KEY];
-            $folderNode = $this->folderRepository->addFolder($properties[FolderRepository::TITLE_PATH_KEY],
-                $folderSource[FolderRepository::NODE_TYPE_KEY], $dimensions);
+
+            $folderNode = $this->folderRepository->addFolder(
+                $folderSource[FolderRepository::PATH_KEY],
+                $folderSource[FolderRepository::NODE_TYPE_KEY],
+                $dimensions
+            );
 
             foreach ($properties as $propertyName => $propertyValue) {
                 $folderNode->setProperty($propertyName, $propertyValue);
             }
             $this->folderRepository->persist();
 
-            foreach ($folderSource[FolderRepository::CHILDREN_KEY] as $child) {
-                $this->_import($child);
-            }
+        }
+        foreach ($folderSource[FolderRepository::CHILDREN_KEY] as $child) {
+            $this->_import($child);
         }
     }
 }

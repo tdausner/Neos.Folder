@@ -20,12 +20,15 @@ use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Mvc\Controller\ActionController;
 use Neos\Flow\Mvc\View\JsonView;
 use Neos\Flow\Persistence\Exception\IllegalObjectTypeException;
+use Neos\Flow\Security\Exception as SecurityException;
+use Neos\Flow\Security\Exception\InvalidPrivilegeException;
 use Neos\Flow\Session\Exception;
 use Neos\Flow\Session\Exception\SessionNotStartedException;
 use Neos\Flow\Session\SessionInterface;
 use Neos\Folder\Domain\Repository\FolderRepository;
 use Neos\Folder\Domain\Service\FolderContext;
 use Neos\Folder\Domain\Service\FolderProvider;
+use Neos\Neos\Service\UserService;
 
 /**
  * Controller for Folder Services
@@ -78,6 +81,12 @@ class FolderServiceController extends ActionController
 
     /**
      * @Flow\Inject
+     * @var UserService
+     */
+    protected UserService $userService;
+
+    /**
+     * @Flow\Inject
      * @var FolderContext
      */
     protected FolderContext $folderContext;
@@ -102,7 +111,7 @@ class FolderServiceController extends ActionController
             $dimensions = $this->_validateSessionAndGetDimensions(true);
             $this->folderRepository->addFolder("$parent/$title", $nodeTypeName, $dimensions);
             $this->view->assign('value', ['ok' => 'folder added']);
-        } catch (NodeException|SessionNotStartedException $exception) {
+        } catch (InvalidPrivilegeException|NodeException|SessionNotStartedException $exception) {
             $this->_exception($exception);
         }
     }
@@ -119,10 +128,10 @@ class FolderServiceController extends ActionController
         try {
             $this->currentSession->isStarted() || throw new SessionNotStartedException();
             $this->currentSession->canBeResumed() && $this->currentSession->resume();
-            if ($noDimensionsPermitted && $_SERVER['QUERY_STRING'] === 'none') {
+            if ($noDimensionsPermitted && ($_SERVER['QUERY_STRING'] === 'none' || $_SERVER['QUERY_STRING'] === 'all')) {
                 $dimensions = [];
             } else {
-                $dimensions =  empty($_SERVER['QUERY_STRING'])
+                $dimensions = empty($_SERVER['QUERY_STRING'])
                     ? NodePaths::explodeContextPath($this->currentSession->getData('lastVisitedNode'))['dimensions']
                     : $this->folderContext->verifyAndConvertDimensions($_SERVER['QUERY_STRING']);
             }
@@ -135,9 +144,9 @@ class FolderServiceController extends ActionController
     /**
      * Handle exception
      *
-     * @param Error|Exception|IllegalObjectTypeException|InvalidArgumentException|NodeException $exception
+     * @param Error|Exception|InvalidPrivilegeException|IllegalObjectTypeException|InvalidArgumentException|NodeException|SecurityException|SessionNotStartedException $exception
      */
-    protected function _exception(Error|Exception|IllegalObjectTypeException|InvalidArgumentException|NodeException $exception): void
+    protected function _exception(Error|Exception|InvalidPrivilegeException|IllegalObjectTypeException|InvalidArgumentException|NodeException|SecurityException|SessionNotStartedException $exception): void
     {
         $this->response->setStatusCode($exception instanceof SessionNotStartedException ? 401 : 400); // Unauthorized : Bad request
         $this->view->assign('value', ['error' => [$exception->getCode(), $exception->getMessage()]]);
@@ -152,8 +161,10 @@ class FolderServiceController extends ActionController
      *    On sort-modes `SORT_STRING|SORT_NATURAL` the flag `SORT_FLAG_CASE` is set (case-insensitive sort).
      *    Default sort mode `SORT_NATURAL` is defined in `Routes.yaml`.
      *
-     * On request to a non-existing folder AND `Neos.Folder.defaults.adoptOnEmpty: true` the requested
+     * On request of a non-existing folder AND `Neos.Folder.defaults.adoptOnEmpty: true` the requested
      * folder tree is adopted from the default dimension to the session's dimensions.
+     *
+     * Special case for dimension: "all" as query string for all available dimensions
      *
      * @param string $token Folder path or identifier
      * @param string $sortMode Sort mode
@@ -162,7 +173,7 @@ class FolderServiceController extends ActionController
     public function getTreeAction(string $token, string $sortMode): void
     {
         try {
-            $targetDimensions = $this->_validateSessionAndGetDimensions();
+            $targetDimensions = $this->_validateSessionAndGetDimensions(true);
             try {
                 $providedFolder = (new FolderProvider())->new($token, $targetDimensions);
             } catch (NodeException $exception) {
@@ -177,10 +188,10 @@ class FolderServiceController extends ActionController
             }
             $folderTree = $this->folderRepository->getFolderTree($providedFolder, $targetDimensions, constant($sortMode));
             empty($folderTree) && throw new NodeException(sprintf(
-                'Folder for token "%s" has no variant for dimensions "%s")',$token,
-                FolderContext::dimensionString($targetDimensions)),1676315838);
+                'Folder for token "%s" has no variant for dimensions "%s")', $token,
+                FolderContext::dimensionString($targetDimensions)), 1676315838);
             $this->view->assign('value', $folderTree);
-        } catch (Error|InvalidArgumentException|NodeException|SessionNotStartedException $exception) {
+        } catch (Error|InvalidPrivilegeException|InvalidArgumentException|NodeException|SecurityException|SessionNotStartedException $exception) {
             $this->_exception($exception);
         }
     }
@@ -206,7 +217,7 @@ class FolderServiceController extends ActionController
             $this->folderRepository->setTitleAndTitlePath($folderNode, $title, $dimensions);
             $this->folderRepository->persist();
             $this->view->assign('value', ['ok' => "folder title set to \"$title\""]);
-        } catch (SessionNotStartedException|NodeException $exception) {
+        } catch (InvalidPrivilegeException|NodeException|SecurityException|SessionNotStartedException $exception) {
             $this->_exception($exception);
         }
     }
@@ -226,7 +237,7 @@ class FolderServiceController extends ActionController
             $dimensions = $this->_validateSessionAndGetDimensions();
             $this->folderRepository->removeFolder($token, $dimensions, $recursive);
             $this->view->assign('value', ['ok' => 'folder(s) removed']);
-        } catch (InvalidArgumentException|NodeException|SessionNotStartedException $exception) {
+        } catch (InvalidArgumentException|InvalidPrivilegeException|NodeException|SessionNotStartedException $exception) {
             $this->_exception($exception);
         }
     }
@@ -250,7 +261,7 @@ class FolderServiceController extends ActionController
             $targetDimensions = $this->_validateSessionAndGetDimensions();
             $this->folderContext->adoptFolder($token, $sourceDimensions, $targetDimensions, $recursive);
             $this->view->assign('value', ['ok' => 'folder(s) adopted']);
-        } catch (InvalidArgumentException|NodeException|SessionNotStartedException $exception) {
+        } catch (InvalidArgumentException|InvalidPrivilegeException|NodeException|SecurityException|SessionNotStartedException $exception) {
             $this->_exception($exception);
         }
     }
@@ -273,7 +284,7 @@ class FolderServiceController extends ActionController
             $dimensions = $this->_validateSessionAndGetDimensions();
             $newPath = $this->folderRepository->moveFolder($token, $target, $dimensions);
             $this->view->assign('value', ['ok' => $newPath]);
-        } catch (NodeException|SessionNotStartedException $exception) {
+        } catch (InvalidPrivilegeException|NodeException|SessionNotStartedException $exception) {
             $this->_exception($exception);
         }
     }
@@ -301,7 +312,7 @@ class FolderServiceController extends ActionController
                 $this->folderRepository->setProperties($token, $propertyString, $dimensions);
             }
             $this->view->assign('value', ['ok' => 'properties ' . (empty($propertyString) ? 'cleared' : 'set')]);
-        } catch (InvalidArgumentException|NodeException|SessionNotStartedException $exception) {
+        } catch (InvalidArgumentException|InvalidPrivilegeException|NodeException|SecurityException|SessionNotStartedException $exception) {
             $this->_exception($exception);
         }
     }
@@ -327,9 +338,8 @@ class FolderServiceController extends ActionController
             $dimensions = $this->_validateSessionAndGetDimensions();
             $this->folderRepository->associate($token, $target, $dimensions, $remove);
             $this->view->assign('value', ['ok' => 'association ' . ($remove ? 'cleared' : 'set')]);
-        } catch (InvalidArgumentException|NodeException|SessionNotStartedException $exception) {
+        } catch (InvalidArgumentException|InvalidPrivilegeException|NodeException|SecurityException|SessionNotStartedException $exception) {
             $this->_exception($exception);
         }
     }
-
 }

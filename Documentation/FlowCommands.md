@@ -141,7 +141,7 @@ the flag SORT_FLAG_CASE is set (case-insensitive sort).
     Arguments:
       --token              Folder path or identifier (default: all)
       --dimension          Dimensions (ampersand separated list of). On empty ('')
-                           takes default dimension(s)
+                           takes default dimension(s). Special: "all".
     
     Options:
       --sort-mode          Sort mode (SORT_REGULAR | SORT_NUMERIC | SORT_STRING |
@@ -155,7 +155,8 @@ Export folders from folder system in JSON format
 
     Arguments:
       --token              path or identifier of folder tree to export
-      --dimension          Dimension
+      --dimension          Dimension. Special case: "all" takes all dimensions on
+                           export
     
     Options:
       --sort-mode          Sort mode (SORT_REGULAR | SORT_NUMERIC | SORT_STRING | 

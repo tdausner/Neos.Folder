@@ -16,9 +16,11 @@ use InvalidArgumentException;
 use Neos\ContentRepository\Domain\Model\NodeData;
 use Neos\ContentRepository\Domain\Service\ConfigurationContentDimensionPresetSource;
 use Neos\ContentRepository\Domain\Utility\NodePaths;
-use Neos\ContentRepository\Exception;
+use Neos\ContentRepository\Exception as CrException;
 use Neos\ContentRepository\Exception\NodeException;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Security\Exception;
+use Neos\Flow\Security\Exception\InvalidPrivilegeException;
 use Neos\Folder\Domain\Repository\FolderRepository;
 
 /**
@@ -38,8 +40,7 @@ class FolderContext extends FolderRepository
      *
      * dimension value string has format:
      *
-     *  <dimension name>=<dimensions value>{,<dimension name>=<dimensions value>}
-     *  <dimension name>:<dimensions value>{,<dimension name>:<dimensions value>}
+     *  <dimension name1>=<dimensions value>{,<dimension name2>=<dimensions value>}
      *
      * @param string $value
      *
@@ -85,6 +86,8 @@ class FolderContext extends FolderRepository
      * @return NodeData adopted folder node
      * @throws NodeException
      * @throws Exception
+     * @throws InvalidPrivilegeException
+     * @throws CrException
      * @api
      */
     public function adoptFolder(string $token, array $sourceDimensions, array $targetDimensions, bool $recursive = true): NodeData
@@ -119,10 +122,10 @@ class FolderContext extends FolderRepository
      */
     public static function dimensionString(array $dimensions): string
     {
-        $dimensionString = '';
+        $dimensionStrings = [];
         foreach ($dimensions as $dimensionName => $dimensionValues) {
-            $dimensionString .= $dimensionName . '=' . join(',', $dimensionValues) . '&';
+            $dimensionStrings[] = $dimensionName . '=' . join(',', $dimensionValues);
         }
-        return substr($dimensionString, 0, -1);
+        return join('&', $dimensionStrings);
     }
 }

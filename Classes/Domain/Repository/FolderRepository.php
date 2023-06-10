@@ -12,7 +12,6 @@ namespace Neos\Folder\Domain\Repository;
  * source code.
  */
 
-use Doctrine\Instantiator\Exception\InvalidArgumentException;
 use Neos\ContentRepository\Domain\Model\NodeData;
 use Neos\ContentRepository\Domain\Model\NodeType;
 use Neos\ContentRepository\Domain\Model\Workspace;
@@ -22,7 +21,9 @@ use Neos\ContentRepository\Domain\Service\ContextFactory;
 use Neos\ContentRepository\Domain\Utility\NodePaths;
 use Neos\ContentRepository\Exception as NodeException;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Http\InvalidArgumentException;
 use Neos\Flow\Persistence\Exception\IllegalObjectTypeException;
+use Neos\Flow\Security\Exception\InvalidPrivilegeException;
 use Neos\Folder\Domain\Service\Diacritics;
 use Neos\Folder\Domain\Service\FolderContext;
 use Neos\Folder\Domain\Service\FolderProvider;
@@ -44,7 +45,6 @@ class FolderRepository extends NodeDataRepository
     final public const PATH_KEY = 'path';
     final public const TITLE_PATH_KEY = 'titlePath';
     final public const NODE_TYPE_KEY = 'nodeType';
-    final public const INDEX_KEY = 'index';
     final public const VARIANTS_KEY = 'variants';
     final public const TITLE_KEY = 'title';
     final public const DIMENSIONS_KEY = 'dimensions';
@@ -53,8 +53,8 @@ class FolderRepository extends NodeDataRepository
     final public const CHILDREN_KEY = 'children';
 
     final public const DEFAULT_PROPERTIES = [
-        self::TITLE_KEY => ['type' => 'string'],
-        self::TITLE_PATH_KEY => ['type' => 'string'],
+        self::TITLE_KEY        => ['type' => 'string'],
+        self::TITLE_PATH_KEY   => ['type' => 'string'],
         self::ASSOCIATIONS_KEY => ['type' => 'references'],
     ];
 
@@ -128,7 +128,7 @@ class FolderRepository extends NodeDataRepository
      * @param bool $recursive Recursive operation on creation
      *
      * @return NodeData added folder node
-     * @throws NodeException
+     * @throws NodeException|InvalidPrivilegeException
      * @api
      */
     public function addFolder(string $path, string $nodeTypeName, array $dimensions, bool $recursive = false): NodeData
@@ -210,7 +210,7 @@ class FolderRepository extends NodeDataRepository
      * @param array $dimensions
      *
      * @return string
-     * @throws NodeException
+     * @throws NodeException|InvalidArgumentException
      */
     protected function _uniqueNodeName(NodeData $parentNode, string $title, array $dimensions): string
     {
@@ -273,7 +273,7 @@ class FolderRepository extends NodeDataRepository
      * @param array $dimensions
      *
      * @return void
-     * @throws NodeException
+     * @throws NodeException|InvalidArgumentException
      * @api
      */
     public function setTitleAndTitlePath(NodeData $folderNode, string $title, array $dimensions): void
@@ -310,76 +310,81 @@ class FolderRepository extends NodeDataRepository
      * Collect all folder entries matching to $bases (default: all)
      *
      * @param FolderProvider $providedFolder
-     * @param array $dimensions
+     * @param array $dimensions Dimensions. Special case: ["all"] takes all dimensions on export
      * @param int $sortMode
-     * @param bool $titlePathExtra
      *
      * @return array folder node tree of <token>
-     * @throws NodeException
+     * @throws NodeException|InvalidPrivilegeException
      * @api
      */
-    public function getFolderTree(FolderProvider $providedFolder, array $dimensions = [], int $sortMode = SORT_NATURAL,
-        bool $titlePathExtra = false): array
+    public function getFolderTree(FolderProvider $providedFolder, array $dimensions = [], int $sortMode = SORT_NATURAL): array
     {
-        $rootPathDepth = $providedFolder->path === '/' ? 1 : count(explode('/', $providedFolder->titlePath));
-        $folderData[$providedFolder->titlePath] = [$rootPathDepth, $providedFolder];
+        $folderData = [];
+        $nodes = $this->findByPathWithoutReduce($providedFolder->path, $this->workspace);
         $childNodes = $this->findByParentAndNodeTypeRecursively($providedFolder->path, '', $this->workspace, $dimensions);
-        foreach ($childNodes as $childNode) {
-            $providedFolder = (new FolderProvider())->new($childNode);
-            $pathDepth = count(explode('/', $providedFolder->titlePath));
-            $folderData[$providedFolder->titlePath] = [$pathDepth, $providedFolder];
+        $nodes = [...$nodes, ...$childNodes];
+        foreach ($nodes as $node) {
+            $path = $node->getPath();
+            if (empty($folderData[$path])) {
+                $folderData[$node->getPath()] = [
+                    $node->getDepth(),
+                    $node->getName(),
+                    $node->getNodeType()->getName(),
+                ];
+            }
+            $folderDimensions = $node->getDimensionValues();
+            if (empty($dimensions) || serialize($folderDimensions) === serialize($dimensions)) {
+                $folderData[$node->getPath()][] = [
+                    $node->getIdentifier(),
+                    $folderDimensions,
+                    $node->getProperties(),
+                ];
+            }
         }
         if ($sortMode === SORT_STRING || $sortMode === SORT_NATURAL) {
             $sortMode += SORT_FLAG_CASE;
         }
         ksort($folderData, $sortMode);
-        return $this->_buildFolderTree($folderData, $dimensions, $titlePathExtra, $rootPathDepth)[0];
+        return $this->_buildFolderTree($folderData, $providedFolder->node->getDepth())[0];
     }
 
     /**
      * Get folder information:
      *
-     *  - path, identifier, name, sorting index, variants
+     *  - path, identifier, name, variants
      *     - dimension, properties (title, titlePath, associations)
      *  - children
      *
      * @param array $folderData
-     * @param array $dimensions
-     * @param bool $titlePathExtra
      * @param int $depth
      *
      * @return array folder tree
      * @throws NodeException
      */
-    protected function _buildFolderTree(array &$folderData, array $dimensions, bool $titlePathExtra, int $depth): array
+    protected function _buildFolderTree(array &$folderData, int $depth): array
     {
         $folderTree = [];
-        while ([$pathDepth, $providedFolder] = current($folderData)) {
+        while ([$pathDepth, $name, $nodeTypeName] = current($folderData)) {
             if ($pathDepth != $depth) {
                 break;
             }
+            $path = key($folderData);
             next($folderData);
-            $temp = [];
-            $temp[self::PATH_KEY] = $providedFolder->path;
-            $temp[self::IDENTIFIER_KEY] = $providedFolder->identifier;
-            $temp[self::NAME_KEY] = $providedFolder->node->getName() ?: '(root)';
-            $titlePathExtra && $temp[self::TITLE_PATH_KEY] = $providedFolder->titlePath;
-            $temp[self::NODE_TYPE_KEY] = $providedFolder->node->getNodeType()->getName();
-            $temp[self::INDEX_KEY] = $providedFolder->node->getIndex();
+            $variants = array_slice($folderData[$path], 3);
 
-            $folderVariants = $this->findByIdentifierWithoutReduce($providedFolder->identifier, $this->workspace);
+            $temp = [];
+            $temp[self::PATH_KEY] = $path;
+            $temp[self::NAME_KEY] = $name;
+            $temp[self::NODE_TYPE_KEY] = $nodeTypeName;
             $temp[self::VARIANTS_KEY] = [];
-            foreach ($folderVariants as $folderVariant) {
-                $folderDimensions = $folderVariant->getDimensionValues();
-                ksort($folderDimensions);
-                if (empty($dimensions) || serialize($folderDimensions) === serialize($dimensions)) {
-                    $temp[self::VARIANTS_KEY][] = [
-                        self::DIMENSIONS_KEY => $folderDimensions,
-                        self::PROPERTY_KEY => $folderVariant->getProperties(),
-                    ];
-                }
+            foreach ($variants as [$identifier, $dimensions, $properties]) {
+                $temp[self::VARIANTS_KEY][] = [
+                    self::IDENTIFIER_KEY => $identifier,
+                    self::DIMENSIONS_KEY => $dimensions,
+                    self::PROPERTY_KEY   => $properties,
+                ];
             }
-            $temp[self::CHILDREN_KEY] = $this->_buildFolderTree($folderData, $dimensions, $titlePathExtra, $depth + 1);
+            $temp[self::CHILDREN_KEY] = $this->_buildFolderTree($folderData, $depth + 1);
             $folderTree[] = $temp;
         }
         return $folderTree;
@@ -393,7 +398,7 @@ class FolderRepository extends NodeDataRepository
      * @param bool $recursive true: remove recursively
      *
      * @return void
-     * @throws NodeException
+     * @throws NodeException|InvalidPrivilegeException
      * @api
      */
     public function removeFolder(string $token, array $dimensions, bool $recursive = false): void
@@ -416,7 +421,7 @@ class FolderRepository extends NodeDataRepository
      * @param bool $recursive
      *
      * @return void
-     * @throws NodeException
+     * @throws NodeException|InvalidPrivilegeException
      */
     protected function _remove(FolderProvider $providedFolder, bool $allDimensions, bool $recursive): void
     {
@@ -432,7 +437,8 @@ class FolderRepository extends NodeDataRepository
             $variantDimensions = $folderVariant->getDimensionValues();
             if ($allDimensions
                 || empty($variantDimensions) && empty($providedDimensions)
-                || serialize($variantDimensions) === serialize($providedDimensions)) {
+                || serialize($variantDimensions) === serialize($providedDimensions)
+            ) {
                 $this->persistenceManager->remove($folderVariant);
             }
         }
@@ -450,7 +456,7 @@ class FolderRepository extends NodeDataRepository
      * @param array $dimensions Dimension: any of Neos.ContentRepository.contentDimensions
      *
      * @return string folder node path to moved folder
-     * @throws NodeException
+     * @throws NodeException|InvalidPrivilegeException|InvalidArgumentException
      * @api
      */
     public function moveFolder(string $token, string $target, array $dimensions): string
@@ -489,7 +495,7 @@ class FolderRepository extends NodeDataRepository
      * @param bool $reset true: reset properties before set of new properties
      *
      * @return void
-     * @throws NodeException
+     * @throws NodeException|InvalidPrivilegeException
      * @api
      */
     public function setProperties(string $token, string $propertyString, array $dimensions, bool $reset = false): void
@@ -526,7 +532,9 @@ class FolderRepository extends NodeDataRepository
      * @param array $dimensions Dimension: any of Neos.ContentRepository.contentDimensions
      *
      * @return void
+     * @throws InvalidPrivilegeException
      * @throws NodeException
+     * @throws NodeException\NodeException
      * @api
      */
     public function clearAllProperties(string $token, array $dimensions): void
@@ -549,6 +557,7 @@ class FolderRepository extends NodeDataRepository
      * @param array $dimensions Dimension: any of Neos.ContentRepository.contentDimensions
      * @param bool $remove true: dissociate (remove) <token> from <target>
      *
+     * @throws InvalidPrivilegeException
      * @throws NodeException
      * @api
      */

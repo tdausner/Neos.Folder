@@ -13,12 +13,19 @@ namespace Neos\Folder\Domain\Service;
  */
 
 use InvalidArgumentException;
+use Neos\Flow\Annotations as Flow;
 use Neos\ContentRepository\Domain\Model\NodeData;
 use Neos\ContentRepository\Domain\Service\ContextFactory;
 use Neos\ContentRepository\Exception as NodeException;
+use Neos\ContentRepository\Security\Authorization\Privilege\Node\NodePrivilegeSubject;
+use Neos\Flow\Security\Authorization\PrivilegeManagerInterface;
+use Neos\Flow\Security\Context;
+use Neos\Flow\Security\Exception;
+use Neos\Flow\Security\Exception\InvalidPrivilegeException;
 use Neos\Flow\Validation\Validator\UuidValidator;
 use Neos\Folder\Domain\Repository\FolderRepository;
 use Neos\Neos\Domain\Service\SiteService;
+use Neos\Neos\Security\Authorization\Privilege\NodeTreePrivilege;
 
 /**
  * @package "Neos.Folder"
@@ -29,6 +36,18 @@ class FolderProvider
      * regular expression for node path
      */
     final public const PATTERN_MATCH_PATH = '/^(\/([a-z0-9](-[a-z0-9])*)*)+$/';
+
+    /**
+     * @var PrivilegeManagerInterface
+     * @Flow\Inject
+     */
+    protected PrivilegeManagerInterface $privilegeManager;
+
+    /**
+     * @Flow\Inject
+     * @var Context
+     */
+    protected Context $securityContext;
 
     /**
      * @param ?NodeData $node
@@ -77,6 +96,8 @@ class FolderProvider
      * @return FolderProvider
      * @throws NodeException
      * @throws InvalidArgumentException
+     * @throws InvalidPrivilegeException
+     * @throws Exception
      */
     public function new(NodeData|string $token, array $dimensions = [], bool $testFolder = false): FolderProvider
     {
@@ -85,21 +106,31 @@ class FolderProvider
             $this->identifier = $this->node->getIdentifier();
             $this->path = $this->node->getPath();
         } else {
-            $contentFactory = new ContextFactory();
-            $context = $contentFactory->create(['workspaceName' => 'live', 'dimensions' => $dimensions]);
+            $contextFactory = new ContextFactory();
+            $context = $contextFactory->create(['workspaceName' => 'live', 'dimensions' => $dimensions]);
             $this->node = null;
             if (preg_match(UuidValidator::PATTERN_MATCH_UUID, $token)) {
                 // token is identifier
-                $this->node = ($context->getNodeByIdentifier($token))?->getNodeData();
+                $this->node = ($nodeInterface = $context->getNodeByIdentifier($token))?->getNodeData();
                 $this->identifier = $token;
                 $this->path = ($this->node)?->getPath();
             } elseif (preg_match(self::PATTERN_MATCH_PATH, Diacritics::path($token))) {
                 // token is path
-                $this->node = ($context->getNode(Diacritics::path($token)))?->getNodeData();
+                $this->node = ($nodeInterface = $context->getNode(Diacritics::path($token)))?->getNodeData();
                 $this->identifier = ($this->node)?->getIdentifier();
                 $this->path = Diacritics::path($token);
+            } else {
+                throw new InvalidArgumentException("Folder token \"$token\" invalid.", 1676388552);
+            }
+            if ($this->securityContext->canBeInitialized()) {
+                $this->securityContext->initialize();
+                $this->securityContext->refreshRoles();
+                if (!$this->privilegeManager->isGranted(NodeTreePrivilege::class, new NodePrivilegeSubject($nodeInterface), $reason)) {
+                    throw new InvalidPrivilegeException("Access inhibited by privileges: $reason.", 1680977700);
+                }
             }
         }
+
         if (!$testFolder && empty($this->node)) {
             throw new NodeException(sprintf('Folder token "%s" dimensions "%s" not found', $token, FolderContext::dimensionString($dimensions)), 1676631409);
         }

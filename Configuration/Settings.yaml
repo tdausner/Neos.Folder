@@ -1,5 +1,15 @@
 Neos:
   Flow:
+    security:
+      authentication:
+        providers:
+          'Neos.Neos:Backend':
+            provider: PersistedUsernamePasswordProvider
+            requestPatterns:
+              'Neos.Folder:Controllers':
+                pattern: 'ControllerObjectName'
+                patternOptions:
+                  controllerObjectNamePattern: 'Neos\Folder\Controller\.*'
     mvc:
       routes:
         'Neos.Folder': true
