@@ -1,0 +1,241 @@
+{
+    "path": "\/fruit",
+    "name": "fruit",
+    "nodeType": "Neos.Folder:Folder",
+    "variants": [
+        {
+            "identifier": "f18223e8-3f38-48ba-9ae5-bd2c631e4032",
+            "dimensions": {
+                "language": [
+                    "en_US"
+                ]
+            },
+            "properties": {
+                "title": "fruit",
+                "titlePath": "\/fruit",
+                "associations": []
+            }
+        },
+        {
+            "identifier": "b54cd76f-3306-48ff-9520-632910a12526",
+            "dimensions": {
+                "language": [
+                    "de"
+                ]
+            },
+            "properties": {
+                "title": "Fr\u00fcchte",
+                "titlePath": "\/Fr\u00fcchte",
+                "associations": []
+            }
+        }
+    ],
+    "children": [
+        {
+            "path": "\/fruit\/apple",
+            "name": "apple",
+            "nodeType": "Neos.Folder:Folder",
+            "variants": [
+                {
+                    "identifier": "0ec42f86-b16e-4d49-9828-b6cf8ae76a7f",
+                    "dimensions": {
+                        "language": [
+                            "en_US"
+                        ]
+                    },
+                    "properties": {
+                        "title": "apple",
+                        "titlePath": "\/fruit\/apple",
+                        "associations": []
+                    }
+                },
+                {
+                    "identifier": "3cf19106-3ab1-426b-acd4-8bc51babefc5",
+                    "dimensions": {
+                        "language": [
+                            "de"
+                        ]
+                    },
+                    "properties": {
+                        "title": "\u00c4pfel",
+                        "titlePath": "\/Fr\u00fcchte\/\u00c4pfel",
+                        "associations": []
+                    }
+                }
+            ],
+            "children": [
+                {
+                    "path": "\/fruit\/apple\/european-elstar",
+                    "name": "european-elstar",
+                    "nodeType": "Neos.Folder:Folder",
+                    "variants": [
+                        {
+                            "identifier": "325ca4ca-b936-47ff-8b3c-2cd48c1adac7",
+                            "dimensions": {
+                                "language": [
+                                    "en_US"
+                                ]
+                            },
+                            "properties": {
+                                "title": "European Elstar",
+                                "titlePath": "\/fruit\/apple\/European Elstar",
+                                "associations": []
+                            }
+                        },
+                        {
+                            "identifier": "bc2a819f-1785-4d7a-98aa-1a7c05f47495",
+                            "dimensions": {
+                                "language": [
+                                    "de"
+                                ]
+                            },
+                            "properties": {
+                                "title": "Elstar",
+                                "titlePath": "\/Fr\u00fcchte\/\u00c4pfel\/Elstar",
+                                "associations": []
+                            }
+                        }
+                    ],
+                    "children": []
+                },
+                {
+                    "path": "\/fruit\/apple\/prince-albrecht-of-prussia",
+                    "name": "prince-albrecht-of-prussia",
+                    "nodeType": "Neos.Folder:Folder",
+                    "variants": [
+                        {
+                            "identifier": "09fa6b2a-a5a4-442d-a0ff-9c7887148fc0",
+                            "dimensions": {
+                                "language": [
+                                    "en_US"
+                                ]
+                            },
+                            "properties": {
+                                "title": "Prince Albrecht of Prussia",
+                                "titlePath": "\/fruit\/apple\/Prince Albrecht of Prussia",
+                                "associations": []
+                            }
+                        },
+                        {
+                            "identifier": "8aaaa28b-63fe-45fc-b9f1-c8afd276a715",
+                            "dimensions": {
+                                "language": [
+                                    "de"
+                                ]
+                            },
+                            "properties": {
+                                "title": "Prinz Albrecht von Preu\u00dfen",
+                                "titlePath": "\/Fr\u00fcchte\/\u00c4pfel\/Prinz Albrecht von Preu\u00dfen",
+                                "associations": []
+                            }
+                        }
+                    ],
+                    "children": []
+                }
+            ]
+        },
+        {
+            "path": "\/fruit\/pear",
+            "name": "pear",
+            "nodeType": "Neos.Folder:Folder",
+            "variants": [
+                {
+                    "identifier": "56c78783-23ba-49bb-8158-ffc7c57202b3",
+                    "dimensions": {
+                        "language": [
+                            "en_US"
+                        ]
+                    },
+                    "properties": {
+                        "title": "pear",
+                        "titlePath": "\/fruit\/pear",
+                        "associations": []
+                    }
+                },
+                {
+                    "identifier": "2a26e686-38a0-40ce-9cd1-d5a0df803438",
+                    "dimensions": {
+                        "language": [
+                            "de"
+                        ]
+                    },
+                    "properties": {
+                        "title": "Birnen",
+                        "titlePath": "\/Fr\u00fcchte\/Birnen",
+                        "associations": []
+                    }
+                }
+            ],
+            "children": [
+                {
+                    "path": "\/fruit\/pear\/bosc-pear",
+                    "name": "bosc-pear",
+                    "nodeType": "Neos.Folder:Folder",
+                    "variants": [
+                        {
+                            "identifier": "d4c9d42d-b1ad-406a-95b0-af70c028f057",
+                            "dimensions": {
+                                "language": [
+                                    "en_US"
+                                ]
+                            },
+                            "properties": {
+                                "title": "Bosc pear",
+                                "titlePath": "\/fruit\/pear\/Bosc pear",
+                                "associations": []
+                            }
+                        },
+                        {
+                            "identifier": "7cb0f563-c53c-4ea5-9539-168cd643da7b",
+                            "dimensions": {
+                                "language": [
+                                    "de"
+                                ]
+                            },
+                            "properties": {
+                                "title": "Boscs Flaschenbirne",
+                                "titlePath": "\/Fr\u00fcchte\/Birnen\/Boscs Flaschenbirne",
+                                "associations": []
+                            }
+                        }
+                    ],
+                    "children": []
+                },
+                {
+                    "path": "\/fruit\/pear\/willam-s-christ",
+                    "name": "willam-s-christ",
+                    "nodeType": "Neos.Folder:Folder",
+                    "variants": [
+                        {
+                            "identifier": "81d22bbd-9a84-4cb8-8694-bb9d49cc1ef1",
+                            "dimensions": {
+                                "language": [
+                                    "en_US"
+                                ]
+                            },
+                            "properties": {
+                                "title": "Willam\u0027s christ",
+                                "titlePath": "\/fruit\/pear\/Willam\u0027s christ",
+                                "associations": []
+                            }
+                        },
+                        {
+                            "identifier": "94347fce-db79-4394-aa6b-f993a5e0c4db",
+                            "dimensions": {
+                                "language": [
+                                    "de"
+                                ]
+                            },
+                            "properties": {
+                                "title": "Williams Christ",
+                                "titlePath": "\/Fr\u00fcchte\/Birnen\/Williams Christ",
+                                "associations": []
+                            }
+                        }
+                    ],
+                    "children": []
+                }
+            ]
+        }
+    ]
+}
